@@ -94,12 +94,9 @@ namespace Aida64ReaderService
             // calling services
             await _mqttClientService.ExecuteStartAsync();
 
-            _logger.LogInformation(_mqttClientService.IsConnected.ToString());
-
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                _logger.LogInformation("Starting While Loop...");
                 var xmlString = ReadSysInfoFromAida64();
 
                 var xmlDoc = new XmlDocument();

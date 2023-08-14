@@ -6,6 +6,7 @@ IHost host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<MQTTClientService>();
         services.AddHostedService<Worker>();
     })
+    .UseWindowsService()
     .Build();
 
 await host.RunAsync();

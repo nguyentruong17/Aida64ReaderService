@@ -40,8 +40,6 @@ namespace Aida64ReaderService
             });
         }
 
-
-
         async public Task ExecuteStartAsync()
         {
             MqttClientOptionsBuilder builder = new MqttClientOptionsBuilder()

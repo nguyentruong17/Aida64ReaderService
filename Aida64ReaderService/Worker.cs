@@ -30,34 +30,35 @@ namespace Aida64ReaderService
         private static readonly string _sysCpuCoreClockPattern = "SCC-1-[0-9]+";
         private static readonly string _sysCpuThreadUtiPattern = "SCPU[0-9]+UTI";
         private static readonly string _tempHddPattern = "THDD[1-9]+";
+        private static readonly string _delimitter = "__";
 
         private readonly Dictionary<string, string> _dictionaryInUsedKeys = new() {
-            { "SCPUCK", "sys_cpu___clock" },
-            { "SCPUUTI", "sys_cpu___utilization" },
-            { "SUSEDMEM", "sys_mem___usage" },
-            { "SMEMCLK", "sys_mem___clock" },
-            { "SUSEDVMEM", "sys_gpu__mem_usage" },
-            { "SGPU1MEMCLK", "sys_gpu__mem_clock" },
-            { "SGPU1UTI", "sys_gpu__utilization" },
-            { "TMOBO", "temp_mobo__measure" },
-            { "TCHIP", "temp_chipset__measure" },
-            { "TCPUDIO", "temp_cpu__measure" },
-            { "TGPU1DIO", "temp_gpu__measure" },
-            { "TGPU1HOT", "temp_gpu__hotspot" },
-            { "FCPU", "fan_cpu__measure" },
-            { "FGPU1", "fan_gpu__fan1" },
-            { "FGPU1GPU2", "fan_gpu__fan2" },
-            { "FGPU1GPU3", "fan_gpu__fan3" },
-            { "VCPUVDD", "voltage_cpu__measure" },
-            { "VGPU1", "voltage_gpu__measure" },
-            { "PCPUVDD", "wattage_cpu__measure" },
-            { "PGPU1", "wattage_gpu__measure" }
+            { "SCPUCK", $"sys_cpu{_delimitter}clock" },
+            { "SCPUUTI", $"sys_cpu{_delimitter}utilization" },
+            { "SUSEDMEM", $"sys_mem{_delimitter}usage" },
+            { "SMEMCLK", $"sys_mem{_delimitter}clock" },
+            { "SUSEDVMEM", $"sys_gpu{_delimitter}mem_usage" },
+            { "SGPU1MEMCLK", $"sys_gpu{_delimitter}mem_clock" },
+            { "SGPU1UTI", $"sys_gpu{_delimitter}utilization" },
+            { "TMOBO", $"temp_mobo{_delimitter}measure" },
+            { "TCHIP", $"temp_chipset{_delimitter}measure" },
+            { "TCPUDIO", $"temp_cpu{_delimitter}measure" },
+            { "TGPU1DIO", $"temp_gpu{_delimitter}measure" },
+            { "TGPU1HOT", $"temp_gpu{_delimitter}hotspot" },
+            { "FCPU", $"fan_cpu{_delimitter}measure" },
+            { "FGPU1", $"fan_gpu{_delimitter}fan1" },
+            { "FGPU1GPU2", $"fan_gpu{_delimitter}fan2" },
+            { "FGPU1GPU3", $"fan_gpu{_delimitter}fan3" },
+            { "VCPUVDD", $"voltage_cpu{_delimitter}measure" },
+            { "VGPU1", $"voltage_gpu{_delimitter}measure" },
+            { "PCPUVDD", $"wattage_cpu{_delimitter}measure" },
+            { "PGPU1", $"wattage_gpu{_delimitter}measure" }
         };
 
         private readonly Dictionary<string, (string, List<double>)> _dictionaryMultiMeasurement = new()
         {
-            [_sysCpuCoreClockPattern] = ("sys_cpu__clock_core_", new List<double>()), // [sys_cpu__clock_core_max, [sys_cpu__clock_core_min 
-            [_sysCpuThreadUtiPattern] = ("sys_cpu__utilization_thread_", new List<double>()), // [sys_cpu__utilization_thread_max, [sys_cpu__utilization_thread_min 
+            [_sysCpuCoreClockPattern] = ($"sys_cpu{_delimitter}clock_core_", new List<double>()), // [sys_cpu{_delimitter}clock_core_max, [sys_cpu{_delimitter}clock_core_min 
+            [_sysCpuThreadUtiPattern] = ($"sys_cpu{_delimitter}utilization_thread_", new List<double>()), // [sys_cpu{_delimitter}utilization_thread_max, [sys_cpu{_delimitter}utilization_thread_min 
         };
 
         private readonly int _delayedTimeMs = 3000;
@@ -182,7 +183,7 @@ namespace Aida64ReaderService
                 {
                     sensors.Add(new Sensor
                     {
-                        Id = "temp_hdd__hdd" + (item.index + 1).ToString(),
+                        Id = $"temp_hdd{_delimitter}hdd" + (item.index + 1).ToString(),
                         Label = "",
                         Value = item.temp
                     });
@@ -191,6 +192,7 @@ namespace Aida64ReaderService
                 var json = JsonSerializer.Serialize(new
                     {
                         sent = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture),
+                        delimitter= _delimitter,
                         payload = sensors
                     });
                 await _mqttClientService.ExecutePublishAsync(json);

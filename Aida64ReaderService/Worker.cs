@@ -32,32 +32,32 @@ namespace Aida64ReaderService
         private static readonly string _tempHddPattern = "THDD[1-9]+";
 
         private readonly Dictionary<string, string> _dictionaryInUsedKeys = new() {
-            { "SCPUCK", "[sys][cpu]_clock" },
-            { "SCPUUTI", "[sys][cpu]_utilization" },
-            { "SUSEDMEM", "[sys][mem]_usage" },
-            { "SMEMCLK", "[sys][mem]_clock" },
-            { "SUSEDVMEM", "[sys][gpu]_mem_usage" },
-            { "SGPU1MEMCLK", "[sys][gpu]_mem_clock" },
-            { "SGPU1UTI", "[sys][gpu]_utilization" },
-            { "TMOBO", "[temp][mobo]_measure" },
-            { "TCHIP", "[temp][chipset]_measure" },
-            { "TCPUDIO", "[temp][cpu]_measure" },
-            { "TGPU1DIO", "[temp][gpu]_measure" },
-            { "TGPU1HOT", "[temp][gpu]_hotspot" },
-            { "FCPU", "[fan][cpu]_measure" },
-            { "FGPU1", "[fan][gpu]_fan1" },
-            { "FGPU1GPU2", "[fan][gpu]_fan2" },
-            { "FGPU1GPU3", "[fan][gpu]_fan3" },
-            { "VCPUVDD", "[voltage][cpu]_measure" },
-            { "VGPU1", "[voltage][gpu]_measure" },
-            { "PCPUVDD", "[wattage][cpu]_measure" },
-            { "PGPU1", "[wattage][gpu]_measure" }
+            { "SCPUCK", "sys_cpu___clock" },
+            { "SCPUUTI", "sys_cpu___utilization" },
+            { "SUSEDMEM", "sys_mem___usage" },
+            { "SMEMCLK", "sys_mem___clock" },
+            { "SUSEDVMEM", "sys_gpu__mem_usage" },
+            { "SGPU1MEMCLK", "sys_gpu__mem_clock" },
+            { "SGPU1UTI", "sys_gpu__utilization" },
+            { "TMOBO", "temp_mobo__measure" },
+            { "TCHIP", "temp_chipset__measure" },
+            { "TCPUDIO", "temp_cpu__measure" },
+            { "TGPU1DIO", "temp_gpu__measure" },
+            { "TGPU1HOT", "temp_gpu__hotspot" },
+            { "FCPU", "fan_cpu__measure" },
+            { "FGPU1", "fan_gpu__fan1" },
+            { "FGPU1GPU2", "fan_gpu__fan2" },
+            { "FGPU1GPU3", "fan_gpu__fan3" },
+            { "VCPUVDD", "voltage_cpu__measure" },
+            { "VGPU1", "voltage_gpu__measure" },
+            { "PCPUVDD", "wattage_cpu__measure" },
+            { "PGPU1", "wattage_gpu__measure" }
         };
 
         private readonly Dictionary<string, (string, List<double>)> _dictionaryMultiMeasurement = new()
         {
-            [_sysCpuCoreClockPattern] = ("[sys][cpu]_clock_core_", new List<double>()), // [sys][cpu]_clock_core_max, [sys][cpu]_clock_core_min 
-            [_sysCpuThreadUtiPattern] = ("[sys][cpu]_utilization_thread_", new List<double>()), // [sys][cpu]_utilization_thread_max, [sys][cpu]_utilization_thread_min 
+            [_sysCpuCoreClockPattern] = ("sys_cpu__clock_core_", new List<double>()), // [sys_cpu__clock_core_max, [sys_cpu__clock_core_min 
+            [_sysCpuThreadUtiPattern] = ("sys_cpu__utilization_thread_", new List<double>()), // [sys_cpu__utilization_thread_max, [sys_cpu__utilization_thread_min 
         };
 
         private readonly int _delayedTimeMs = 3000;
@@ -182,7 +182,7 @@ namespace Aida64ReaderService
                 {
                     sensors.Add(new Sensor
                     {
-                        Id = "[temp][hdd]_hdd" + (item.index + 1).ToString(),
+                        Id = "temp_hdd__hdd" + (item.index + 1).ToString(),
                         Label = "",
                         Value = item.temp
                     });

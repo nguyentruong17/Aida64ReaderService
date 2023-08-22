@@ -1,2 +1,2 @@
 # Aida64ReaderService
-MQTT Client Publishing Extracted SysData from Aida64
+MQTT Pub Client and Extracted SysData from Aida64

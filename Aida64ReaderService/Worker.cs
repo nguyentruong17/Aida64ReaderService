@@ -57,11 +57,11 @@ namespace Aida64ReaderService
 
         private readonly Dictionary<string, (string, List<double>)> _dictionaryMultiMeasurement = new()
         {
-            [_sysCpuCoreClockPattern] = ($"sys_cpu{_delimitter}clock_core_", new List<double>()), // [sys_cpu{_delimitter}clock_core_max, [sys_cpu{_delimitter}clock_core_min 
-            [_sysCpuThreadUtiPattern] = ($"sys_cpu{_delimitter}utilization_thread_", new List<double>()), // [sys_cpu{_delimitter}utilization_thread_max, [sys_cpu{_delimitter}utilization_thread_min 
+            [_sysCpuCoreClockPattern] = ($"sys_cpu{_delimitter}clock_core_", new List<double>()), // sys_cpu{_delimitter}clock_core_max, sys_cpu{_delimitter}clock_core_min 
+            [_sysCpuThreadUtiPattern] = ($"sys_cpu{_delimitter}utilization_thread_", new List<double>()), // sys_cpu{_delimitter}utilization_thread_max, sys_cpu{_delimitter}utilization_thread_min 
         };
 
-        private readonly int _delayedTimeMs = 3000;
+        private readonly int _delayedTimeMs = 1000;
 
         private readonly MQTTClientService _mqttClientService;
         private readonly ILogger<Worker> _logger;
@@ -95,9 +95,22 @@ namespace Aida64ReaderService
             // calling services
             await _mqttClientService.ExecuteStartAsync();
 
+            bool connected = _mqttClientService.IsConnected;
 
             while (!stoppingToken.IsCancellationRequested)
             {
+                if (!connected)
+                {
+                    connected = _mqttClientService.IsConnected;
+                    Console.WriteLine($"connection is ready? {connected}");
+
+                    if (!connected)
+                    {
+                        await Task.Delay(5000, stoppingToken);
+                    }
+                    continue;
+                }
+
                 var xmlString = ReadSysInfoFromAida64();
 
                 var xmlDoc = new XmlDocument();
@@ -197,6 +210,8 @@ namespace Aida64ReaderService
                     });
                 await _mqttClientService.ExecutePublishAsync(json);
                 await Task.Delay(_delayedTimeMs, stoppingToken);
+
+                connected = _mqttClientService.IsConnected;
             }
         }
 

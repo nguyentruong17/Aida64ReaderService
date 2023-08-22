@@ -10,8 +10,10 @@ namespace Aida64ReaderService
     {
         private readonly IManagedMqttClient _mqttClient;
 
-        private readonly String _clientId = "Node-Torrent7-C#";
+        private readonly String _clientId = "DotNet-Torrent7-C#";
+        private readonly String _protocol = "ws";
         private readonly String _host = "192.168.0.62";
+        private readonly String _port = "9001";
         private readonly String _topic = "bedroom/torrent7";
 
         public bool IsConnected { get; private set; }
@@ -44,10 +46,10 @@ namespace Aida64ReaderService
         {
             MqttClientOptionsBuilder builder = new MqttClientOptionsBuilder()
                                                 .WithClientId(_clientId)
-                                                .WithTcpServer(_host);
+                                                .WithWebSocketServer($"{_protocol}://{_host}:{_port}");
 
             ManagedMqttClientOptions options = new ManagedMqttClientOptionsBuilder()
-                                                .WithAutoReconnectDelay(TimeSpan.FromSeconds(60))
+                                                .WithAutoReconnectDelay(TimeSpan.FromSeconds(10))
                                                 .WithClientOptions(builder.Build())
                                                 .Build();
 
@@ -58,7 +60,13 @@ namespace Aida64ReaderService
 
         async public Task ExecutePublishAsync(String json)
         {
-            await _mqttClient.PublishAsync(_topic, json);
+            try
+            {
+                await _mqttClient.PublishAsync(_topic, json);
+            } catch (Exception ex)
+            {
+                Console.WriteLine("Error while trying to publish: ", ex.ToString());
+            }
         }
 
         async public Task ExecuteStopAsync(CancellationToken cancellationToken)

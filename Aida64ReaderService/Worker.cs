@@ -36,7 +36,7 @@ namespace Aida64ReaderService
         private static readonly string _delimitter = "__";
 
         private readonly Dictionary<string, string> _dictionaryInUsedKeys = new() {
-            { "SCPUCK", $"sys_cpu{_delimitter}clock" },
+            { "SCPUCLK", $"sys_cpu{_delimitter}clock" },
             { "SCPUUTI", $"sys_cpu{_delimitter}utilization" },
             { "SUSEDMEM", $"sys_mem{_delimitter}usage" },
             { "SMEMCLK", $"sys_mem{_delimitter}clock" },
@@ -205,17 +205,15 @@ namespace Aida64ReaderService
                 {
                     var prefixKey = _dictionaryMultiMeasurement[pattern].Item1;
  
-                    var maxSensorIdx = _dictionaryMultiMeasurement[pattern].Item2
-                            .Select((sensor, index) => new { sensor.Value, Index = index })
+                    var maxSensor = _dictionaryMultiMeasurement[pattern].Item2
+                            .Select((sensor) => new { sensor.Value, Each = sensor })
                             .Aggregate((a, b) => (a.Value > b.Value) ? a : b)
-                            .Index;
-                    var maxSensor = _dictionaryMultiMeasurement[pattern].Item2[maxSensorIdx];
+                            .Each;
 
-                    var minSensorIdx = _dictionaryMultiMeasurement[pattern].Item2
-                            .Select((sensor, index) => new { sensor.Value, Index = index })
+                    var minSensor = _dictionaryMultiMeasurement[pattern].Item2
+                            .Select((sensor) => new { sensor.Value, Each = sensor })
                             .Aggregate((a, b) => (a.Value < b.Value) ? a : b)
-                            .Index;
-                    var minSensor = _dictionaryMultiMeasurement[pattern].Item2[minSensorIdx];
+                            .Each;
 
                     sensors.Add(new Sensor
                     {
@@ -252,7 +250,7 @@ namespace Aida64ReaderService
                     delimitter = _delimitter,
                     payload = sensors
                 });
-                // Console.WriteLine(json.ToString());
+                Console.WriteLine(json.ToString());
 
                 await _mqttClientService.ExecutePublishAsync(json);
                 await Task.Delay(_delayedTimeMs, stoppingToken);

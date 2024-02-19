@@ -205,17 +205,15 @@ namespace Aida64ReaderService
                 {
                     var prefixKey = _dictionaryMultiMeasurement[pattern].Item1;
  
-                    var maxSensorIdx = _dictionaryMultiMeasurement[pattern].Item2
-                            .Select((sensor, index) => new { sensor.Value, Index = index })
+                    var maxSensor = _dictionaryMultiMeasurement[pattern].Item2
+                            .Select((sensor) => new { sensor.Value, Each = sensor })
                             .Aggregate((a, b) => (a.Value > b.Value) ? a : b)
-                            .Index;
-                    var maxSensor = _dictionaryMultiMeasurement[pattern].Item2[maxSensorIdx];
+                            .Each;
 
-                    var minSensorIdx = _dictionaryMultiMeasurement[pattern].Item2
-                            .Select((sensor, index) => new { sensor.Value, Index = index })
+                    var minSensor = _dictionaryMultiMeasurement[pattern].Item2
+                            .Select((sensor) => new { sensor.Value, Each = sensor })
                             .Aggregate((a, b) => (a.Value < b.Value) ? a : b)
-                            .Index;
-                    var minSensor = _dictionaryMultiMeasurement[pattern].Item2[minSensorIdx];
+                            .Each;
 
                     sensors.Add(new Sensor
                     {

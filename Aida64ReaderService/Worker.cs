@@ -4,6 +4,8 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Globalization;
+using Polly.Retry;
+using Polly;
 
 // SCC-1-[0-9]+
 // SCPU[0-9]+UTI
@@ -19,7 +21,8 @@ using System.Globalization;
 class Sensor
 {
     public string Id { get; set; }
-    public string Label { get; set; }
+    public string AidaId { get; set; }
+    public string AidaLabel { get; set; }
     public double Value { get; set; }
 }
 
@@ -37,6 +40,7 @@ namespace Aida64ReaderService
             { "SCPUUTI", $"sys_cpu{_delimitter}utilization" },
             { "SUSEDMEM", $"sys_mem{_delimitter}usage" },
             { "SMEMCLK", $"sys_mem{_delimitter}clock" },
+            { "SGPU1CLK", $"sys_gpu{_delimitter}clock" },
             { "SUSEDVMEM", $"sys_gpu{_delimitter}mem_usage" },
             { "SGPU1MEMCLK", $"sys_gpu{_delimitter}mem_clock" },
             { "SGPU1UTI", $"sys_gpu{_delimitter}utilization" },
@@ -55,16 +59,23 @@ namespace Aida64ReaderService
             { "PGPU1", $"wattage_gpu{_delimitter}measure" }
         };
 
-        private readonly Dictionary<string, (string, List<double>)> _dictionaryMultiMeasurement = new()
+        private readonly Dictionary<string, (string, List<Sensor>)> _dictionaryMultiMeasurement = new()
         {
-            [_sysCpuCoreClockPattern] = ($"sys_cpu{_delimitter}clock_core_", new List<double>()), // sys_cpu{_delimitter}clock_core_max, sys_cpu{_delimitter}clock_core_min 
-            [_sysCpuThreadUtiPattern] = ($"sys_cpu{_delimitter}utilization_thread_", new List<double>()), // sys_cpu{_delimitter}utilization_thread_max, sys_cpu{_delimitter}utilization_thread_min 
+            [_sysCpuCoreClockPattern] = ($"sys_cpu{_delimitter}clock_core_", new List<Sensor>()), // sys_cpu{_delimitter}clock_core_max, sys_cpu{_delimitter}clock_core_min 
+            [_sysCpuThreadUtiPattern] = ($"sys_cpu{_delimitter}utilization_thread_", new List<Sensor>()), // sys_cpu{_delimitter}utilization_thread_max, sys_cpu{_delimitter}utilization_thread_min 
         };
 
-        private readonly int _delayedTimeMs = 1000;
+        private readonly int _delayedTimeMs = 1_000;
 
         private readonly MQTTClientService _mqttClientService;
         private readonly ILogger<Worker> _logger;
+
+        private static readonly RetryPolicy delayRetryIfException = Policy
+            .Handle<FileNotFoundException>()
+            .WaitAndRetry(
+                3,
+                retryAttempt => TimeSpan.FromSeconds(Math.Pow(3, retryAttempt))
+            );
 
         public Worker(
             MQTTClientService mqttClientService,
@@ -74,14 +85,17 @@ namespace Aida64ReaderService
 
         private static string ReadSysInfoFromAida64()
         {
-            using var mmf = MemoryMappedFile.OpenExisting("AIDA64_SensorValues");
+            using var mmf = delayRetryIfException.Execute(() =>
+                MemoryMappedFile.OpenExisting("AIDA64_SensorValues")
+            );
+            // using var mmf = MemoryMappedFile.OpenExisting("AIDA64_SensorValues");
             using var accessor = mmf.CreateViewAccessor();
             var bytes = new byte[accessor.Capacity];
 
             accessor.ReadArray(0, bytes, 0, bytes.Length);
 
             int i = bytes.Length - 1;
-            while (bytes[i] == 0) 
+            while (bytes[i] == 0)
                 --i;
 
             byte[] nonEmptyBytes = new byte[i + 1];
@@ -119,6 +133,7 @@ namespace Aida64ReaderService
                 var nodes = xmlDoc.DocumentElement!.ChildNodes
                     .OfType<XmlNode>()
                     .ToList();
+
                 var filteredNodes = new List<XmlNode>();
 
                 // reset each key's array
@@ -127,7 +142,7 @@ namespace Aida64ReaderService
                     _dictionaryMultiMeasurement[pattern].Item2.Clear();
                 }
 
-                var hddTemps = new List<double>();
+                var hddTempSensors = new List<Sensor>();
 
                 // filter out the nodes that have not-parsable doubles
                 // add all multi-measurement nodes' values to their corresponnding lists
@@ -142,12 +157,18 @@ namespace Aida64ReaderService
 
                     foreach (string pattern in _dictionaryMultiMeasurement.Keys)
                     {
-                        Regex regex = new (pattern);
-                        
+                        Regex regex = new(pattern);
+
                         if (regex.IsMatch(id))
                         {
                             var li = _dictionaryMultiMeasurement[pattern].Item2;
-                            li.Add(value);
+                            li.Add(new Sensor
+                            {
+                                Id = id,
+                                AidaId = id,
+                                AidaLabel = node.SelectSingleNode("label")!.InnerText,
+                                Value = value
+                            });
                         }
                     }
 
@@ -156,11 +177,17 @@ namespace Aida64ReaderService
                         filteredNodes.Add(node);
                     }
 
-                    Regex tempHddRegex = new (_tempHddPattern);
+                    Regex tempHddRegex = new(_tempHddPattern);
 
                     if (tempHddRegex.IsMatch(id))
                     {
-                        hddTemps.Add(value);
+                        hddTempSensors.Add(new Sensor
+                        {
+                            Id = id,
+                            AidaId = id,
+                            AidaLabel = node.SelectSingleNode("label")!.InnerText,
+                            Value = value
+                        });
                     }
                 }
 
@@ -168,7 +195,8 @@ namespace Aida64ReaderService
                     .Select(n => new Sensor
                     {
                         Id = _dictionaryInUsedKeys[n.SelectSingleNode("id")!.InnerText],
-                        Label = "",
+                        AidaId = n.SelectSingleNode("id")!.InnerText,
+                        AidaLabel = n.SelectSingleNode("label")!.InnerText,
                         Value = Double.Parse(n.SelectSingleNode("value")!.InnerText),
                     })
                     .ToList();
@@ -176,38 +204,56 @@ namespace Aida64ReaderService
                 foreach (string pattern in _dictionaryMultiMeasurement.Keys)
                 {
                     var prefixKey = _dictionaryMultiMeasurement[pattern].Item1;
+ 
+                    var maxSensorIdx = _dictionaryMultiMeasurement[pattern].Item2
+                            .Select((sensor, index) => new { sensor.Value, Index = index })
+                            .Aggregate((a, b) => (a.Value > b.Value) ? a : b)
+                            .Index;
+                    var maxSensor = _dictionaryMultiMeasurement[pattern].Item2[maxSensorIdx];
+
+                    var minSensorIdx = _dictionaryMultiMeasurement[pattern].Item2
+                            .Select((sensor, index) => new { sensor.Value, Index = index })
+                            .Aggregate((a, b) => (a.Value < b.Value) ? a : b)
+                            .Index;
+                    var minSensor = _dictionaryMultiMeasurement[pattern].Item2[minSensorIdx];
 
                     sensors.Add(new Sensor
                     {
                         Id = prefixKey + "max",
-                        Label = "",
-                        Value = _dictionaryMultiMeasurement[pattern].Item2.Max()
+                        AidaId = maxSensor.AidaId,
+                        AidaLabel = maxSensor.AidaLabel,
+                        Value = maxSensor.Value,
                     });
 
                     sensors.Add(new Sensor
                     {
                         Id = prefixKey + "min",
-                        Label = "",
-                        Value = _dictionaryMultiMeasurement[pattern].Item2.Min()
+                        AidaId = minSensor.AidaId,
+                        AidaLabel = minSensor.AidaLabel,
+                        Value = minSensor.Value,
                     });
                 }
 
-                foreach (var item in hddTemps.Select((temp, index) => (temp, index)))
+                for (var i = 0; i < hddTempSensors.Count; i++)
                 {
+                    var eachTempSensor = hddTempSensors[i];
                     sensors.Add(new Sensor
                     {
-                        Id = $"temp_hdd{_delimitter}hdd" + (item.index + 1).ToString(),
-                        Label = "",
-                        Value = item.temp
+                        Id = $"temp_hdd{_delimitter}hdd" + (i + 1).ToString(),
+                        AidaLabel = eachTempSensor.AidaLabel,
+                        AidaId = eachTempSensor.AidaId,
+                        Value = eachTempSensor.Value
                     });
-                };
+                }
 
                 var json = JsonSerializer.Serialize(new
-                    {
-                        sent = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture),
-                        delimitter= _delimitter,
-                        payload = sensors
-                    });
+                {
+                    sent = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture),
+                    delimitter = _delimitter,
+                    payload = sensors
+                });
+                // Console.WriteLine(json.ToString());
+
                 await _mqttClientService.ExecutePublishAsync(json);
                 await Task.Delay(_delayedTimeMs, stoppingToken);
 

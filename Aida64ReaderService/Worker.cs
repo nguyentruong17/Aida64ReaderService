@@ -36,7 +36,7 @@ namespace Aida64ReaderService
         private static readonly string _delimitter = "__";
 
         private readonly Dictionary<string, string> _dictionaryInUsedKeys = new() {
-            { "SCPUCK", $"sys_cpu{_delimitter}clock" },
+            { "SCPUCLK", $"sys_cpu{_delimitter}clock" },
             { "SCPUUTI", $"sys_cpu{_delimitter}utilization" },
             { "SUSEDMEM", $"sys_mem{_delimitter}usage" },
             { "SMEMCLK", $"sys_mem{_delimitter}clock" },
@@ -250,7 +250,7 @@ namespace Aida64ReaderService
                     delimitter = _delimitter,
                     payload = sensors
                 });
-                // Console.WriteLine(json.ToString());
+                Console.WriteLine(json.ToString());
 
                 await _mqttClientService.ExecutePublishAsync(json);
                 await Task.Delay(_delayedTimeMs, stoppingToken);
